@@ -78,6 +78,7 @@ export async function getMortgageDeeds(filters: DeedFilters = {}): Promise<{
     queryParams.toString() ? `?${queryParams.toString()}` : ""
   }`;
 
+  console.log("Fetching mortgage deeds from:", url);
   try {
     const response = await fetch(url, {
       headers: {
@@ -136,6 +137,7 @@ export async function getStatisticsSummary(): Promise<StatsSummary> {
 
   const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/statistics/summary`;
 
+  console.log("Fetching statistics summary from:", url);
   try {
     const response = await fetch(url, {
       headers: {
