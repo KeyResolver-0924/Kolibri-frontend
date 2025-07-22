@@ -8,110 +8,62 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, Search } from "lucide-react";
+import { User, Search, Home, Archive, Plus, Building } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { toast } from "@/components/ui/use-toast";
-import { useEffect, useState } from "react";
 import { useUser } from "@/contexts/user-context";
 
 export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
-  const { refreshUser } = useUser();
-  const [userFullName, setUserFullName] = useState<string>("");
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-
-  const fetchUserData = async () => {
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        setIsAuthenticated(false);
-        setUserFullName("");
-        return;
-      }
-
-      setIsAuthenticated(true);
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-
-      if (error || !user) {
-        console.error("Error fetching user:", error);
-        return;
-      }
-
-      // const firstName = user.user_metadata?.first_name;
-      // const lastName = user.user_metadata?.last_name;?
-      const userName = user.user_metadata?.user_name;
-
-      if (userName) {
-        setUserFullName(userName);
-      } else {
-        setUserFullName(
-          user.user_metadata?.full_name || user.email?.split("@")[0] || "User"
-        );
-      }
-    } catch (error: any) {
-      console.error("Error fetching user:", error);
-      setIsAuthenticated(false);
-      setUserFullName("");
-    }
-  };
-
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
-        setIsAuthenticated(false);
-        setUserFullName("");
-      } else {
-        fetchUserData();
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
+  const { user, isLoading } = useUser();
 
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-
-      setIsAuthenticated(false);
-      setUserFullName("");
       router.replace("/login");
-    } catch (error: any) {
+    } catch (error) {
+      console.log(error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Error",
         variant: "destructive",
       });
     }
   };
 
-  // Don't render the navbar on the login page
-  if (pathname === "/login") {
+  // Don't render the navbar on the login page or if there's no user
+  if (pathname === "/login" || (!user && !isLoading)) {
     return null;
   }
 
-  // If not authenticated, show minimal navbar or return null
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Show loading skeleton while user data is being fetched
+  // if (isLoading) {
+  //   return (
+  //     <nav className="bg-primary text-primary-foreground">
+  //       <div className="container mx-auto px-4">
+  //         <div className="flex items-center justify-between h-16">
+  //           <div className="flex items-center space-x-2">
+  //             <Skeleton className="h-8 w-24" />
+  //           </div>
+  //           <div className="flex items-center space-x-4">
+  //             <Skeleton className="h-10 w-[200px]" />
+  //             <Skeleton className="h-10 w-24" />
+  //             <Skeleton className="h-10 w-24" />
+  //             <Skeleton className="h-10 w-24" />
+  //             <Skeleton className="h-10 w-32" />
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </nav>
+  //   );
+  // }
 
   return (
     <nav className="bg-primary text-primary-foreground">
@@ -127,7 +79,7 @@ export function Navbar() {
               <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Sök..."
+                placeholder="Search..."
                 className="pl-8 bg-primary-foreground text-primary w-[200px] focus-visible:ring-primary"
               />
             </div>
@@ -136,27 +88,44 @@ export function Navbar() {
               asChild
               className="hover:bg-primary-foreground/10 text-primary-foreground hover:text-primary-foreground"
             >
-              <Link href="/dashboard">Översikt</Link>
+              <Link href="/dashboard" className="flex items-center gap-2">
+                <Home className="h-4 w-4" />
+                Overview
+              </Link>
             </Button>
+            {user?.role === "cooperative_admin" && (
+              <Button
+                variant="ghost"
+                asChild
+                className="hover:bg-primary-foreground/10 text-primary-foreground hover:text-primary-foreground"
+              >
+                <Link
+                  href="/my-associations"
+                  className="flex items-center gap-2"
+                >
+                  <Building className="h-4 w-4" />
+                  My Cooperatives
+                </Link>
+              </Button>
+            )}
             <Button
               variant="ghost"
               asChild
               className="hover:bg-primary-foreground/10 text-primary-foreground hover:text-primary-foreground"
             >
-              <Link href="/my-associations">Mina Föreningar</Link>
-            </Button>
-            <Button
-              variant="ghost"
-              asChild
-              className="hover:bg-primary-foreground/10 text-primary-foreground hover:text-primary-foreground"
-            >
-              <Link href="/arkiv">Arkiv</Link>
+              <Link href="/arkiv" className="flex items-center gap-2">
+                <Archive className="h-4 w-4" />
+                Archive
+              </Link>
             </Button>
             <Button
               asChild
               className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
             >
-              <Link href="/skapa-pantbrev">Ny inteckning</Link>
+              <Link href="/skapa-pantbrev" className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                New Mortgage
+              </Link>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -164,18 +133,42 @@ export function Navbar() {
                   variant="ghost"
                   className="hover:bg-primary-foreground/10 text-primary-foreground hover:text-primary-foreground"
                 >
-                  <span>{userFullName || "Loading..."}</span>
-                  <User className="w-5 h-5 ml-2" />
+                  <span className="flex items-center gap-2">
+                    {user?.user_name || "User"}
+                    <User className="h-4 w-4" />
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span className="font-normal text-sm text-muted-foreground">
+                      Signed in as
+                    </span>
+                    <span className="font-medium">{user?.email}</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {user?.role === "bank_user" && (
+                  <>
+                    <DropdownMenuLabel>
+                      <span className="font-normal text-sm text-muted-foreground">
+                        Bank: {user.bank_name}
+                      </span>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem asChild>
-                  <Link href="/settings" className="w-full">
-                    Inställningar
+                  <Link href="/settings" className="cursor-pointer">
+                    Settings
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={handleLogout}>
-                  Logga ut
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600 cursor-pointer"
+                  onSelect={handleLogout}
+                >
+                  Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

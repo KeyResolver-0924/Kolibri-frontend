@@ -23,7 +23,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
-import { HousingCooperativeForm, type HousingCooperativeFormData } from "@/components/housing-cooperative-form";
+import {
+  HousingCooperativeForm,
+  type HousingCooperativeFormData,
+} from "@/components/housing-cooperative-form";
 import { DeleteCooperativeDialog } from "@/components/delete-cooperative-dialog";
 
 interface HousingCooperative {
@@ -49,16 +52,17 @@ interface PaginationHeaders {
 }
 
 const formatDate = (dateString: string | null) => {
-  if (!dateString) return '-';
+  if (!dateString) return "-";
   try {
     const date = new Date(dateString);
     // Check if date is valid
     if (isNaN(date.getTime())) {
-      return '-';
+      return "-";
     }
-    return format(date, 'PPP', { locale: sv });
+    return format(date, "PPP", { locale: sv });
   } catch (error) {
-    return '-';
+    console.log(error);
+    return "-";
   }
 };
 
@@ -67,7 +71,8 @@ export default function MyAssociationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedCooperative, setSelectedCooperative] = useState<HousingCooperative | null>(null);
+  const [selectedCooperative, setSelectedCooperative] =
+    useState<HousingCooperative | null>(null);
   const [pagination, setPagination] = useState<PaginationHeaders>({
     totalCount: 0,
     totalPages: 0,
@@ -75,14 +80,17 @@ export default function MyAssociationsPage() {
     pageSize: 10,
   });
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [cooperativeToDelete, setCooperativeToDelete] = useState<HousingCooperative | null>(null);
+  const [cooperativeToDelete, setCooperativeToDelete] =
+    useState<HousingCooperative | null>(null);
 
   const fetchCooperatives = async (page: number, pageSize: number) => {
     try {
       setLoading(true);
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         throw new Error("Ingen aktiv session hittades");
       }
@@ -91,9 +99,9 @@ export default function MyAssociationsPage() {
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/housing-cooperatives?page=${page}&page_size=${pageSize}`,
         {
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
         }
       );
 
@@ -103,17 +111,17 @@ export default function MyAssociationsPage() {
 
       const data = await response.json();
       setCooperatives(data);
-      
+
       setPagination({
-        totalCount: parseInt(response.headers.get('X-Total-Count') || '0'),
-        totalPages: parseInt(response.headers.get('X-Total-Pages') || '0'),
-        currentPage: parseInt(response.headers.get('X-Current-Page') || '1'),
-        pageSize: parseInt(response.headers.get('X-Page-Size') || '10'),
+        totalCount: parseInt(response.headers.get("X-Total-Count") || "0"),
+        totalPages: parseInt(response.headers.get("X-Total-Pages") || "0"),
+        currentPage: parseInt(response.headers.get("X-Current-Page") || "1"),
+        pageSize: parseInt(response.headers.get("X-Page-Size") || "10"),
       });
 
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ett fel uppstod');
+      setError(err instanceof Error ? err.message : "Ett fel uppstod");
     } finally {
       setLoading(false);
     }
@@ -153,10 +161,12 @@ export default function MyAssociationsPage() {
     <main className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Bostadsrättsföreningar</h1>
-        <Button onClick={() => {
-          setSelectedCooperative(null);
-          setIsFormOpen(true);
-        }}>
+        <Button
+          onClick={() => {
+            setSelectedCooperative(null);
+            setIsFormOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Lägg till förening
         </Button>
@@ -221,9 +231,12 @@ export default function MyAssociationsPage() {
                         <TableCell>{cooperative.name}</TableCell>
                         <TableCell>{cooperative.organisation_number}</TableCell>
                         <TableCell>
-                          {cooperative.address}, {cooperative.postal_code} {cooperative.city}
+                          {cooperative.address}, {cooperative.postal_code}{" "}
+                          {cooperative.city}
                         </TableCell>
-                        <TableCell>{cooperative.administrator_company || "-"}</TableCell>
+                        <TableCell>
+                          {cooperative.administrator_company || "-"}
+                        </TableCell>
                         <TableCell>{cooperative.administrator_name}</TableCell>
                         <TableCell>{cooperative.administrator_email}</TableCell>
                         <TableCell>
@@ -231,15 +244,15 @@ export default function MyAssociationsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => handleEdit(cooperative)}
                             >
                               Redigera
                             </Button>
-                            <Button 
-                              variant="destructive" 
+                            <Button
+                              variant="destructive"
                               size="sm"
                               onClick={() => handleDelete(cooperative)}
                             >
@@ -257,7 +270,13 @@ export default function MyAssociationsPage() {
             {cooperatives.length > 0 && (
               <div className="flex justify-between items-center mt-4">
                 <div className="text-sm text-muted-foreground">
-                  Visar {(pagination.currentPage - 1) * pagination.pageSize + 1} - {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalCount)} av {pagination.totalCount} föreningar
+                  Visar {(pagination.currentPage - 1) * pagination.pageSize + 1}{" "}
+                  -{" "}
+                  {Math.min(
+                    pagination.currentPage * pagination.pageSize,
+                    pagination.totalCount
+                  )}{" "}
+                  av {pagination.totalCount} föreningar
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -283,14 +302,16 @@ export default function MyAssociationsPage() {
         </Card>
 
         <HousingCooperativeForm
-          key={selectedCooperative?.id || 'new'}
+          key={selectedCooperative?.id || "new"}
           isOpen={isFormOpen}
           onClose={() => {
             setIsFormOpen(false);
             setSelectedCooperative(null);
           }}
           onSuccess={handleFormSuccess}
-          initialData={selectedCooperative as HousingCooperativeFormData | undefined}
+          initialData={
+            selectedCooperative as HousingCooperativeFormData | undefined
+          }
         />
 
         {cooperativeToDelete && (
@@ -307,4 +328,4 @@ export default function MyAssociationsPage() {
       </div>
     </main>
   );
-} 
+}

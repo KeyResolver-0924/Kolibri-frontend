@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +38,12 @@ interface HousingCooperativeFormProps {
   initialData?: HousingCooperativeFormData;
 }
 
-export function HousingCooperativeForm({ isOpen, onClose, onSuccess, initialData }: HousingCooperativeFormProps) {
+export function HousingCooperativeForm({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialData,
+}: HousingCooperativeFormProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<HousingCooperativeFormData>(
     initialData || {
@@ -59,7 +70,9 @@ export function HousingCooperativeForm({ isOpen, onClose, onSuccess, initialData
 
     try {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session) {
         throw new Error("Ingen aktiv session hittades");
@@ -78,7 +91,7 @@ export function HousingCooperativeForm({ isOpen, onClose, onSuccess, initialData
       const response = await fetch(endpoint, {
         method: isEditing ? "PUT" : "POST",
         headers: {
-          "Authorization": `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(
@@ -91,7 +104,8 @@ export function HousingCooperativeForm({ isOpen, onClose, onSuccess, initialData
                 administrator_company: formData.administrator_company,
                 administrator_name: formData.administrator_name,
                 administrator_email: formData.administrator_email,
-                administrator_person_number: formData.administrator_person_number,
+                administrator_person_number:
+                  formData.administrator_person_number,
               }
             : requestBody
         ),
@@ -103,8 +117,10 @@ export function HousingCooperativeForm({ isOpen, onClose, onSuccess, initialData
       }
 
       toast({
-        title: isEditing ? "Föreningen har uppdaterats" : "Föreningen har skapats",
-        description: `${formData.name} har ${isEditing ? "uppdaterats" : "lagts till"} i systemet.`,
+        title: isEditing ? "Cooperative Updated" : "Cooperative Created",
+        description: isEditing
+          ? "The housing cooperative has been updated successfully"
+          : "The housing cooperative has been created successfully",
       });
 
       onSuccess();
@@ -139,7 +155,12 @@ export function HousingCooperativeForm({ isOpen, onClose, onSuccess, initialData
               <Input
                 id="name"
                 autoFocus
-                onFocus={(e) => e.target.setSelectionRange(e.target.value.length, e.target.value.length)}
+                onFocus={(e) =>
+                  e.target.setSelectionRange(
+                    e.target.value.length,
+                    e.target.value.length
+                  )
+                }
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
@@ -215,7 +236,9 @@ export function HousingCooperativeForm({ isOpen, onClose, onSuccess, initialData
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="administrator_company">Administratörsföretag</Label>
+              <Label htmlFor="administrator_company">
+                Administratörsföretag
+              </Label>
               <Input
                 id="administrator_company"
                 autoFocus={false}
@@ -247,7 +270,9 @@ export function HousingCooperativeForm({ isOpen, onClose, onSuccess, initialData
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="administrator_email">Administratörens e-post</Label>
+              <Label htmlFor="administrator_email">
+                Administratörens e-post
+              </Label>
               <Input
                 id="administrator_email"
                 autoFocus={false}
@@ -303,4 +328,4 @@ export function HousingCooperativeForm({ isOpen, onClose, onSuccess, initialData
       </DialogContent>
     </Dialog>
   );
-} 
+}

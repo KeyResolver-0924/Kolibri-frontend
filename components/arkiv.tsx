@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronUp, ChevronDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
@@ -49,66 +49,64 @@ export function Arkiv() {
       router.push("/login");
       return;
     }
-
-    fetchDeeds();
-  }, [statusFilter, router]);
-
-  const fetchDeeds = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const endpoint =
-        statusFilter === "approved" ? "/deed/archive" : "/deed/listDeeds";
-      console.log(`Hämtar data från endpoint: ${endpoint}`);
-
-      const response = await fetch(`http://localhost:4000${endpoint}`, {
-        headers: {
-          Authorization: token,
-          "Content-Type": "application/json",
-        },
-      });
-
-      console.log("Server svarstatus:", response.status);
-      const data = await response.json();
-      console.log("Server svarsdata:", data);
-
-      if (response.status === 401 || response.status === 403) {
-        console.log("Token ogiltig eller utgången");
-        localStorage.removeItem("token");
+    const fetchDeeds = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
         router.push("/login");
         return;
       }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || "Kunde inte hämta pantbrev");
-      }
+      setIsLoading(true);
+      setError(null);
 
-      setDeeds(data || []);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Ett oväntat fel uppstod";
-      setError(`Ett fel uppstod vid hämtning av pantbrev: ${errorMessage}`);
-      console.error("Fel vid hämtning:", err);
+      try {
+        const endpoint =
+          statusFilter === "approved" ? "/deed/archive" : "/deed/listDeeds";
+        console.log(`Hämtar data från endpoint: ${endpoint}`);
 
-      if (
-        err instanceof Error &&
-        (err.message.includes("401") || err.message.includes("403"))
-      ) {
-        localStorage.removeItem("token");
-        router.push("/login");
+        const response = await fetch(`http://localhost:4000${endpoint}`, {
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+        });
+
+        console.log("Server svarstatus:", response.status);
+        const data = await response.json();
+        console.log("Server svarsdata:", data);
+
+        if (response.status === 401 || response.status === 403) {
+          console.log("Token ogiltig eller utgången");
+          localStorage.removeItem("token");
+          router.push("/login");
+          return;
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.message || "Kunde inte hämta pantbrev");
+        }
+
+        setDeeds(data || []);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Ett oväntat fel uppstod";
+        setError(`Ett fel uppstod vid hämtning av pantbrev: ${errorMessage}`);
+        console.error("Fel vid hämtning:", err);
+
+        if (
+          err instanceof Error &&
+          (err.message.includes("401") || err.message.includes("403"))
+        ) {
+          localStorage.removeItem("token");
+          router.push("/login");
+        }
+      } finally {
+        setIsLoading(false);
       }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    fetchDeeds();
+  }, [statusFilter, router]);
 
   const filtreradePantbrev = deeds.filter(
     (deed) =>

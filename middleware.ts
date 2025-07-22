@@ -1,6 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// List of public routes that don't require authentication
+const publicRoutes = ["/", "/login", "/signup", "/logout"];
+
+// List of routes that require authentication but not cooperative setup
+const authRoutes = ["/dashboard", "/settings", "/arkiv", "/my-associations"];
+
+// List of routes that require cooperative setup for cooperative admins
+const cooperativeSetupRoutes = ["/setup-cooperative"];
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -35,18 +44,28 @@ export async function middleware(request: NextRequest) {
   );
 
   try {
+    // Check if the current route is public
+    const isPublicRoute = publicRoutes.some(
+      (route) =>
+        request.nextUrl.pathname === route ||
+        request.nextUrl.pathname.startsWith(route + "/")
+    );
+
+    // If it's a public route, allow access without checking session
+    if (isPublicRoute) {
+      return response;
+    }
+
     // Try to get the session
     const {
       data: { session },
       error: sessionError,
     } = await supabase.auth.getSession();
+
     if (sessionError) throw sessionError;
 
-    if (request.nextUrl.pathname.startsWith("/signup")) {
-      return;
-    }
     // If no session and trying to access protected route
-    if (!session && !request.nextUrl.pathname.startsWith("/login")) {
+    if (!session) {
       // Clear any invalid cookies
       response.cookies.set({
         name: "sb-access-token",
@@ -59,7 +78,7 @@ export async function middleware(request: NextRequest) {
         maxAge: 0,
       });
 
-      const redirectUrl = new URL("/login", request.url);
+      const redirectUrl = new URL("/", request.url);
       return NextResponse.redirect(redirectUrl);
     }
 
@@ -75,8 +94,8 @@ export async function middleware(request: NextRequest) {
       } = await supabase.auth.refreshSession();
 
       if (refreshError) {
-        // If refresh fails, redirect to login
-        const redirectUrl = new URL("/login", request.url);
+        // If refresh fails, redirect to landing page
+        const redirectUrl = new URL("/", request.url);
         return NextResponse.redirect(redirectUrl);
       }
 
@@ -90,15 +109,55 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // If user is signed in and tries to access login page
-    if (session && request.nextUrl.pathname.startsWith("/login")) {
+    // Get user metadata
+    // const {
+    //   data: { user },
+    // } = await supabase.auth.getUser();
+
+    // // Handle cooperative admin setup
+    // if (user?.user_metadata?.role === "cooperative_admin") {
+    //   // Check if the cooperative is already set up
+    //   const { data: cooperative } = await supabase
+    //     .from("cooperatives")
+    //     .select("id")
+    //     .eq("admin_id", user.id)
+    //     .single();
+
+    //   const needsSetup = !cooperative;
+    //   const isSetupRoute = cooperativeSetupRoutes.some(
+    //     (route) =>
+    //       request.nextUrl.pathname === route ||
+    //       request.nextUrl.pathname.startsWith(route + "/")
+    //   );
+
+    //   // If needs setup and not on setup page, redirect to setup
+    //   if (needsSetup && !isSetupRoute) {
+    //     const redirectUrl = new URL("/setup-cooperative", request.url);
+    //     return NextResponse.redirect(redirectUrl);
+    //   }
+
+    //   // If already set up and trying to access setup page, redirect to dashboard
+    //   if (!needsSetup && isSetupRoute) {
+    //     const redirectUrl = new URL("/dashboard", request.url);
+    //     return NextResponse.redirect(redirectUrl);
+    //   }
+    // }
+
+    // If user is signed in and tries to access login/signup pages
+    if (
+      session &&
+      (request.nextUrl.pathname.startsWith("/login") ||
+        request.nextUrl.pathname.startsWith("/signup"))
+    ) {
       const redirectUrl = new URL("/dashboard", request.url);
       return NextResponse.redirect(redirectUrl);
     }
   } catch (error) {
-    // If any error occurs during session handling, redirect to login
-    if (!request.nextUrl.pathname.startsWith("/login")) {
-      const redirectUrl = new URL("/login", request.url);
+    // If any error occurs during session handling, redirect to landing page
+    if (
+      !publicRoutes.some((route) => request.nextUrl.pathname.startsWith(route))
+    ) {
+      const redirectUrl = new URL("/", request.url);
       return NextResponse.redirect(redirectUrl);
     }
   }

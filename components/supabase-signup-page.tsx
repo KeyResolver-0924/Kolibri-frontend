@@ -6,167 +6,282 @@ import { createClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
-import { LockClosedIcon, ShieldCheckIcon } from "@heroicons/react/24/solid";
+import { LockClosedIcon, BuildingLibraryIcon } from "@heroicons/react/24/solid";
 
-function randomInt8() {
-  return Math.floor(Math.random() * 256) - 128;
+// Map of user types to roles in the system
+const userTypeToRole = {
+  bank: "bank_user",
+  accounting: "accounting_firm",
+  cooperative: "cooperative_admin",
+} as const;
+
+type UserType = keyof typeof userTypeToRole;
+
+interface Props {
+  preselectedRole: UserType;
 }
 
-export default function SupabaseSignUpPage() {
+export default function SupabaseSignUpPage({ preselectedRole }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [userName, setUserName] = useState("");
+  const [bankId, setBankId] = useState("");
+  const [bankName, setBankName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
+  const validateForm = () => {
+    if (!email || !password || !confirmPassword || !userName || !bankId) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (preselectedRole === "bank" && !bankName) {
+      toast({
+        title: "Error",
+        description: "Please enter the bank name",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (password.length < 8) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 8 characters long",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     setIsLoading(true);
 
     try {
-      console.log("process");
-      const { error } = await supabase.auth.signUp({
+      const role = userTypeToRole[preselectedRole];
+      const userData = {
         email,
         password,
         options: {
+          emailRedirectTo: "http://localhost:3000/login",
           data: {
-            phone: phone,
+            phone,
             user_name: userName,
-            bank_id: randomInt8(),
+            role,
+            bank_id: bankId,
+            bank_name: bankName || undefined,
           },
         },
-      });
+      };
+
+      const { data, error } = await supabase.auth.signUp(userData);
 
       if (error) {
         throw error;
       }
+
+      if (!data.user?.id) {
+        throw new Error("Failed to create user account - no user ID returned");
+      }
+
+      console.log("Auth user created:", data.user);
+
+      if (role === "bank_user") {
+        await supabase.from("bank_users").insert({
+          id: data.user.id,
+          email: email,
+          name: userName,
+          bank_id: parseInt(bankId, 10),
+          phone_number: phone,
+          bank_name: bankName,
+        });
+      } else if (role === "accounting_firm") {
+        await supabase.from("accounting_firms").insert({
+          id: data.user?.id,
+          email: email,
+          name: userName,
+          bank_id: bankId,
+          phone_number: phone,
+        });
+      } else if (role === "cooperative_admin") {
+        await supabase.from("housing_cooperative_admins").insert({
+          id: data.user?.id,
+          email: email,
+          name: userName,
+          bank_id: bankId,
+          phone_number: phone,
+        });
+      }
+
       toast({
         title: "Success",
-        description: "Check your email for the verification link!",
-        variant: "destructive",
+        description: "Please check your email for the verification link!",
       });
+
       router.push("/login");
-    } catch (error: any) {
+    } catch (error) {
+      console.log(error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Error",
         variant: "destructive",
       });
-      // Clear the form on error
-      setEmail("");
-      setPassword("");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const roleLabels = {
+    bank: "Bank",
+    accounting: "Accounting Firm",
+    cooperative: "Housing Cooperative (Admin)",
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 p-4">
-      <div className="w-full max-w-[420px] space-y-6">
-        <div className="text-center space-y-2">
-          <ShieldCheckIcon className="h-12 w-12 mx-auto text-blue-600" />
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            Mortgage Deed System
-          </h1>
-          <p className="text-sm text-gray-500">
-            Secure Digital Mortgage Management
-          </p>
-        </div>
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>Sign up your new account</CardDescription>
-          </CardHeader>
-          <CardContent>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        {preselectedRole === "bank" ? (
+          <BuildingLibraryIcon className="mx-auto h-12 w-12 text-emerald-600" />
+        ) : (
+          <LockClosedIcon className="mx-auto h-12 w-12 text-emerald-600" />
+        )}
+        <h2 className="text-center text-3xl font-extrabold text-gray-900 mt-6">
+          Create Account
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Sign up as {roleLabels[preselectedRole]}
+        </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <Card>
+          <CardContent className="pt-6">
             <form onSubmit={handleSignUp} className="space-y-4">
+              {preselectedRole === "bank" && (
+                <div className="space-y-2">
+                  <Label htmlFor="bankName">Bank Name</Label>
+                  <Input
+                    id="bankName"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    required
+                    className="h-11"
+                    placeholder="e.g. Swedbank"
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="h-11"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder=""
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                  <LockClosedIcon className="h-4 w-4 absolute right-3 top-3.5 text-gray-400" />
-                </div>
+                <Label htmlFor="userName">Name</Label>
+                <Input
+                  id="userName"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  required
+                  className="h-11"
+                />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="userName" className="text-sm font-medium">
-                  User Name
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="userName"
-                    type="text"
-                    placeholder=""
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                  <LockClosedIcon className="h-4 w-4 absolute right-3 top-3.5 text-gray-400" />
-                </div>
+                <Label htmlFor="bankId">BankID</Label>
+                <Input
+                  id="bankId"
+                  value={bankId}
+                  onChange={(e) => setBankId(e.target.value)}
+                  required
+                  className="h-11"
+                  placeholder="Personal number for BankID"
+                />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm font-medium">
-                  Phone Number
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="phone"
-                    type="text"
-                    placeholder=""
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                  <LockClosedIcon className="h-4 w-4 absolute right-3 top-3.5 text-gray-400" />
-                </div>
+                <Label htmlFor="phone">Phone (optional)</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="h-11"
+                />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
+
               <Button
                 type="submit"
-                className="w-full h-11 bg-blue-600 hover:bg-blue-700 transition-colors"
+                className="w-full h-11"
                 disabled={isLoading}
               >
-                {isLoading ? "Signing up..." : "Sign up securely"}
+                {isLoading ? (
+                  "Creating Account..."
+                ) : (
+                  <>
+                    <LockClosedIcon className="h-5 w-5 mr-2" />
+                    Create Account
+                  </>
+                )}
               </Button>
             </form>
           </CardContent>
         </Card>
-        <p className="text-center text-sm text-gray-500">
-          Protected by enterprise-grade security
-        </p>
       </div>
     </div>
   );

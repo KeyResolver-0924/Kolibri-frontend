@@ -37,13 +37,46 @@ export default function SupabaseLoginPage() {
       if (error) {
         throw error;
       }
-      console.log("login success");
-      // After successful login, redirect to dashboard
+
+      // Get user data to check role
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
+      // Check if user is a cooperative admin
+      if (user?.user_metadata?.role === "cooperative_admin") {
+        // Check if they have any cooperatives
+        const { data: cooperative, error: coopError } = await supabase
+          .from("cooperatives")
+          .select("id")
+          .eq("admin_id", user.id)
+          .single();
+
+        if (coopError && coopError.code !== "PGRST116") {
+          // PGRST116 means no rows found
+          throw coopError;
+        }
+
+        // If no cooperative exists, redirect to setup
+        if (!cooperative) {
+          toast({
+            title: "Welcome!",
+            description: "Please set up your cooperative to continue.",
+          });
+          router.replace("/setup-cooperative");
+          return;
+        }
+      }
+
+      // If we reach here, either user is not a cooperative admin or already has a cooperative
       router.replace("/dashboard");
-    } catch (error: any) {
+    } catch (error) {
+      console.log(error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Error",
         variant: "destructive",
       });
       // Clear the form on error
@@ -72,7 +105,7 @@ export default function SupabaseLoginPage() {
             <CardDescription>Sign in to access your account</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-5">
-            <form onSubmit={handleLogin} className="space-y-4 w-full">
+            <form onSubmit={(e) => handleLogin(e)} className="space-y-4 w-full">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email

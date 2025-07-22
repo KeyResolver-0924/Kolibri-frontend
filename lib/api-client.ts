@@ -1,5 +1,4 @@
 import {
-  DeedStatus,
   MortgageDeed,
   DeedFilters,
   StatsSummary,
@@ -78,7 +77,7 @@ export async function getMortgageDeeds(filters: DeedFilters = {}): Promise<{
     queryParams.toString() ? `?${queryParams.toString()}` : ""
   }`;
 
-  console.log("Fetching mortgage deeds from:", url);
+  console.log("mortgage", url);
   try {
     const response = await fetch(url, {
       headers: {
@@ -137,7 +136,7 @@ export async function getStatisticsSummary(): Promise<StatsSummary> {
 
   const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/statistics/summary`;
 
-  console.log("Fetching statistics summary from:", url);
+  console.log("summary", url);
   try {
     const response = await fetch(url, {
       headers: {

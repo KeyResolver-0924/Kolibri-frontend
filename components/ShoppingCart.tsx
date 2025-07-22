@@ -1,19 +1,25 @@
-'use client'
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { motion, AnimatePresence } from 'framer-motion'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ShoppingCartProps {
-  basePrice: number
-  users: number
-  period: '3' | '12'
-  addons: string[]
-  onContinue: () => void
+  basePrice: number;
+  users: number;
+  period: "3" | "12";
+  addons: string[];
+  onContinue: () => void;
 }
 
-export function ShoppingCart({ basePrice, users, period, addons, onContinue }: ShoppingCartProps) {
-  const totalPrice = basePrice * users + addons.reduce((sum, addon) => sum + 100, 0)
+export function ShoppingCart({
+  basePrice,
+  users,
+  period,
+  addons,
+  onContinue,
+}: ShoppingCartProps) {
+  const totalPrice = basePrice * users + addons.reduce((sum) => sum + 100, 0);
 
   return (
     <Card className="w-full sticky top-4">
@@ -40,7 +46,7 @@ export function ShoppingCart({ basePrice, users, period, addons, onContinue }: S
           <AnimatePresence>
             {addons.map((addon, index) => (
               <motion.div
-                key={addon}
+                key={index}
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
@@ -53,7 +59,7 @@ export function ShoppingCart({ basePrice, users, period, addons, onContinue }: S
             ))}
           </AnimatePresence>
         </div>
-        <motion.div 
+        <motion.div
           className="pt-4 border-t"
           animate={{ opacity: 1, y: 0 }}
           initial={{ opacity: 0, y: 20 }}
@@ -69,7 +75,7 @@ export function ShoppingCart({ basePrice, users, period, addons, onContinue }: S
             <span>Avtal</span>
             <span>Period</span>
           </div>
-          <motion.div 
+          <motion.div
             className="flex justify-between text-sm"
             key={period}
             animate={{ opacity: 1, x: 0 }}
@@ -84,6 +90,5 @@ export function ShoppingCart({ basePrice, users, period, addons, onContinue }: S
         </Button>
       </CardContent>
     </Card>
-  )
+  );
 }
-
