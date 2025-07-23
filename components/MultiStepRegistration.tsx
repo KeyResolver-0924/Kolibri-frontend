@@ -12,7 +12,6 @@ import { CheckCircle2,  ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-type RegistrationType = "förening" | "förvaltare";
 
 const STEPS = [
   { number: 1, title: "Företagsuppgifter" },
