@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, HelpCircle, ArrowLeft, ArrowRight } from "lucide-react";
+import { CheckCircle2,  ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -20,10 +20,9 @@ const STEPS = [
   { number: 3, title: "Granska & beställ" },
 ];
 
-export function MultiStepRegistration({ type }: { type: RegistrationType }) {
+export function MultiStepRegistration() {
   const [step, setStep] = useState(1);
   const [orgInfo, setOrgInfo] = useState("");
-  const [users, setUsers] = useState(1);
   const [period, setPeriod] = useState<"3" | "12">("12");
   const [selectedPackage, setSelectedPackage] = useState("basic");
 
