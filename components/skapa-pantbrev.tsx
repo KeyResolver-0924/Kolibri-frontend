@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -10,8 +11,9 @@ import {
 import { createClient } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -32,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useUser } from "@/contexts/user-context";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Interface definitions
 interface Borrower {
@@ -77,6 +80,10 @@ interface FormData {
   apartment_number: string;
   borrowers: Borrower[];
   housing_cooperative_signers: HousingCooperativeSigner[];
+  has_existing_mortgages?: boolean;
+  existing_mortgage_bank?: string;
+  existing_mortgage_date?: string;
+  notes?: string;
 }
 
 interface HousingCooperative {
@@ -262,6 +269,10 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
         },
       ],
       housing_cooperative_signers: [],
+      has_existing_mortgages: false,
+      existing_mortgage_bank: "",
+      existing_mortgage_date: "",
+      notes: "",
     },
   });
 
@@ -425,6 +436,10 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                 : borrower.ownership_percentage,
           })),
           housing_cooperative_signers: deed.housing_cooperative_signers,
+          has_existing_mortgages: deed.has_existing_mortgages,
+          existing_mortgage_bank: deed.existing_mortgage_bank,
+          existing_mortgage_date: deed.existing_mortgage_date,
+          notes: deed.notes,
         });
 
         setSelectedCooperative(deed.housing_cooperative);
@@ -1086,6 +1101,79 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
               </CardContent>
             </Card>
           )}
+
+          {/* Additional Information Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Additional Information</CardTitle>
+              <CardDescription>Optional details and existing mortgages</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="has_existing_mortgages"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        id="has_existing_mortgages"
+                      />
+                    </FormControl>
+                    <FormLabel htmlFor="has_existing_mortgages" className="font-medium">
+                      This property has existing mortgage deeds
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+              {form.watch("has_existing_mortgages") && (
+                <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="existing_mortgage_bank"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Existing Mortgage Bank</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Nordea Bank" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="existing_mortgage_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Existing Mortgage Date</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="date" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              )}
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Additional Notes</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Any additional information or special considerations..." rows={3} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
           {/* Board Member Selection Dialog */}
           <BoardMemberSelectionDialog
             isOpen={isBoardMemberDialogOpen}
