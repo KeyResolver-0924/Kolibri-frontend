@@ -525,8 +525,6 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
 
               {/* Credit Numbers Section */}
               <div className="space-y-4">
-                <h3 className="text-sm font-medium">Credit Numbers</h3>
-
                 {/* Main Credit Number */}
                 <FormField
                   control={form.control}
@@ -547,72 +545,49 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                   )}
                 />
 
-                {/* Add More Checkbox */}
-                <FormField
-                  control={form.control}
-                  name="add_more_credit_numbers"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={field.onChange}
-                          className="h-4 w-4"
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Add additional credit numbers
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-
                 {/* Additional Credit Numbers */}
-                {addMore && (
-                  <div className="space-y-4">
-                    {creditNumbersArray.fields.map((field, index) => (
-                      <div key={field.id} className="flex items-center gap-2">
-                        <FormField
-                          control={form.control}
-                          name={`credit_numbers.${index}.credit_number`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  value={field.value ?? ""}
-                                  placeholder={`Additional credit number ${
-                                    index + 1
-                                  }`}
-                                  maxLength={50}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => creditNumbersArray.remove(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleAddCreditNumber}
-                      className="mt-2"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Credit Number
-                    </Button>
-                  </div>
-                )}
+                <div className="space-y-4">
+                  {creditNumbersArray.fields.map((field, index) => (
+                    <div key={field.id} className="flex items-center gap-2">
+                      <FormField
+                        control={form.control}
+                        name={`credit_numbers.${index}.credit_number`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ""}
+                                placeholder={`Additional credit number ${
+                                  index + 1
+                                }`}
+                                maxLength={50}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => creditNumbersArray.remove(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddCreditNumber}
+                    className="mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Credit Number
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -933,7 +908,8 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                       name={`borrowers.${index}.ownership_percentage`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Ownership Percentage</FormLabel>
+                          <FormLabel>Ownership Share In
+                          The Cooperative</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -1021,45 +997,50 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                     </div>
                   </div>
                 ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddSigner}
-                  className="mt-4"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Signer
-                </Button>
+                <div className="flex items-center gap-4 mt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddSigner}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Signer
+                  </Button>
+                  {/* Show the checkbox only if there are no signers */}
+                  {signersArray.fields.length === 0 && (
+                    <div className="ml-16"> {/* Increased left margin for more space */}
+                      <FormField
+                        control={form.control}
+                        name="is_accounting_firm"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <input
+                                type="checkbox"
+                                checked={field.value}
+                                onChange={field.onChange}
+                                className="h-4 w-4"
+                              />
+                            </FormControl>
+                            <FormLabel className="font-medium">
+                              Accounting Firm
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
-          <Card>
-            <CardHeader>
-              <CardTitle>Accounting Firm</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Toggle between Housing Cooperative and Accounting Firm */}
-              <FormField
-                control={form.control}
-                name="is_accounting_firm"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={field.onChange}
-                        className="h-4 w-4"
-                      />
-                    </FormControl>
-                    <FormLabel className="font-normal">
-                      This is an accounting firm
-                    </FormLabel>
-                  </FormItem>
-                )}
-              />
-              {form.watch("is_accounting_firm") && (
-                /* Accounting Firm Fields */
+          {/* Accounting Firm Card - only show if is_accounting_firm is true */}
+          {form.watch("is_accounting_firm") && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Accounting Firm</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-4">
                     Accounting Firm Information
@@ -1102,9 +1083,9 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                     />
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
           {/* Board Member Selection Dialog */}
           <BoardMemberSelectionDialog
             isOpen={isBoardMemberDialogOpen}
