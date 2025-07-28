@@ -10,67 +10,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUser } from "@/contexts/user-context";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useBankDashboardStats, useCooperativeDashboardStats, useAccountingDashboardStats } from "@/hooks/use-api";
 
 // Bank Dashboard Component
 function BankDashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { user, token } = useUser();
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        if (!token) {
-          // Set default values if no token
-          setStats({
-            total_deeds: 0,
-            pending_signatures: 0,
-            completed_deeds: 0,
-            bank_name: user?.bank_name || "Bank"
-          });
-          return;
-        }
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/statistics/bank-dashboard`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          // Set default values if API call fails
-          setStats({
-            total_deeds: 0,
-            pending_signatures: 0,
-            completed_deeds: 0,
-            bank_name: user?.bank_name || "Bank"
-          });
-          return;
-        }
-
-        const data = await response.json();
-        setStats(data);
-      } catch (err) {
-        console.error("Error fetching bank stats:", err);
-        // Set default values on error
-        setStats({
-          total_deeds: 0,
-          pending_signatures: 0,
-          completed_deeds: 0,
-          bank_name: user?.bank_name || "Bank"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (user?.role === "bank_user") {
-      fetchStats();
-    }
-  }, [user, token]);
+  const { user } = useUser();
+  const { data: stats, isLoading, error } = useBankDashboardStats();
 
   const statsCards = [
     {
@@ -168,67 +113,8 @@ function BankDashboard() {
 
 // Cooperative Admin Dashboard Component
 function CooperativeDashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { user, token } = useUser();
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        if (!token) {
-          // Set default values if no token
-          setStats({
-            pending_reviews: 0,
-            approved_this_month: 0,
-            total_units: 0,
-            active_deeds: 0,
-            cooperative_name: "Cooperative"
-          });
-          return;
-        }
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/statistics/cooperative-dashboard`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          // Set default values if API call fails
-          setStats({
-            pending_reviews: 0,
-            approved_this_month: 0,
-            total_units: 0,
-            active_deeds: 0,
-            cooperative_name: "Cooperative"
-          });
-          return;
-        }
-
-        const data = await response.json();
-        setStats(data);
-      } catch (err) {
-        console.error("Error fetching cooperative stats:", err);
-        // Set default values on error
-        setStats({
-          pending_reviews: 0,
-          approved_this_month: 0,
-          total_units: 0,
-          active_deeds: 0,
-          cooperative_name: "Cooperative"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (user?.role === "cooperative_admin") {
-      fetchStats();
-    }
-  }, [user, token]);
+  const { user } = useUser();
+  const { data: stats, isLoading, error } = useCooperativeDashboardStats();
 
   const statsCards = [
     {
@@ -341,67 +227,8 @@ function CooperativeDashboard() {
 
 // Accounting Firm Dashboard Component
 function AccountingDashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { user, token } = useUser();
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        if (!token) {
-          // Set default values if no token
-          setStats({
-            active_cooperatives: 0,
-            pending_actions: 0,
-            processed_this_month: 0,
-            avg_processing: "0 days",
-            accounting_firm_name: "Accounting Firm"
-          });
-          return;
-        }
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/statistics/accounting-dashboard`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          // Set default values if API call fails
-          setStats({
-            active_cooperatives: 0,
-            pending_actions: 0,
-            processed_this_month: 0,
-            avg_processing: "0 days",
-            accounting_firm_name: "Accounting Firm"
-          });
-          return;
-        }
-
-        const data = await response.json();
-        setStats(data);
-      } catch (err) {
-        console.error("Error fetching accounting stats:", err);
-        // Set default values on error
-        setStats({
-          active_cooperatives: 0,
-          pending_actions: 0,
-          processed_this_month: 0,
-          avg_processing: "0 days",
-          accounting_firm_name: "Accounting Firm"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (user?.role === "accounting_firm") {
-      fetchStats();
-    }
-  }, [user, token]);
+  const { user } = useUser();
+  const { data: stats, isLoading, error } = useAccountingDashboardStats();
 
   const statsCards = [
     {
