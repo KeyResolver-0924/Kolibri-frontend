@@ -97,6 +97,8 @@ interface HousingCooperative {
   administrator_name: string;
   administrator_person_number: string;
   administrator_email: string;
+  accounting_firm_name?: string;
+  accounting_firm_email?: string;
 }
 
 interface BoardMember {
@@ -244,6 +246,9 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
     useState<HousingCooperative | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [organizationNumber, setOrganizationNumber] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [showNoResultsAlert, setShowNoResultsAlert] = useState(false);
   const [cooperativeSearchResults, setCooperativeSearchResults] = useState<
     HousingCooperative[]
   >([]);
@@ -331,7 +336,7 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
         console.log("Searching for:", query);
         const response = await fetch(
           `${
-            process.env.NEXT_PUBLIC_BACKEND_URL
+            process.env['NEXT_PUBLIC_BACKEND_URL']
           }/api/housing-cooperatives?page=1&page_size=10&search=${encodeURIComponent(
             query
           )}`,
@@ -365,6 +370,67 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
     [supabase, toast]
   );
 
+  const searchByOrganizationNumber = async () => {
+    if (!organizationNumber.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an organization number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSearching(true);
+    setShowNoResultsAlert(false);
+
+    try {
+      // Search in housing_cooperatives table
+      const { data: cooperativeData, error } = await supabase
+        .from("housing_cooperatives")
+        .select("*")
+        .eq("organisation_number", organizationNumber.trim())
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST116") {
+          // No results found
+          setShowNoResultsAlert(true);
+          setCooperativeSearchResults([]);
+        } else {
+          throw error;
+        }
+      } else if (cooperativeData) {
+        // Found existing cooperative
+        setSelectedCooperative(cooperativeData);
+        setCooperativeSearchResults([cooperativeData]);
+        setShowNoResultsAlert(false);
+        
+        // Pre-fill the form with existing data
+        form.setValue("housing_cooperative_id", cooperativeData.id);
+        form.setValue("organization_number", cooperativeData.organisation_number);
+        form.setValue("cooperative_name", cooperativeData.name);
+        form.setValue("cooperative_address", cooperativeData.address);
+        form.setValue("cooperative_city", cooperativeData.city);
+        form.setValue("cooperative_postal_code", cooperativeData.postal_code);
+        form.setValue("administrator_name", cooperativeData.administrator_name || "");
+        form.setValue("administrator_email", cooperativeData.administrator_email || "");
+        form.setValue("administrator_person_number", cooperativeData.administrator_person_number || "");
+        form.setValue("accounting_firm_name", cooperativeData.accounting_firm_name || "");
+        form.setValue("accounting_firm_email", cooperativeData.accounting_firm_email || "");
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to search housing cooperatives",
+        variant: "destructive",
+      });
+      setCooperativeSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       searchHousingCooperative(searchQuery);
@@ -388,7 +454,7 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
         }
 
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/mortgage-deeds/${deedId}`,
+          `${process.env['NEXT_PUBLIC_BACKEND_URL']}/api/mortgage-deeds/${deedId}`,
           {
             headers: {
               Authorization: `Bearer ${session.access_token}`,
@@ -446,8 +512,8 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
       } catch (err: unknown) {
         if (err instanceof ApiError) {
           toast({
-            title: "Error",
-            description: err.message,
+            title: "Error", 
+            description: (err as ApiError).message,
             variant: "destructive",
           });
         } else {
@@ -472,18 +538,120 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
       if (!token) {
         throw new ApiError(401, "No authentication token found");
       }
+
+      // Save housing cooperative data to Supabase if organization number is provided
+      let housing_cooperative_id = data.housing_cooperative_id;
+      
+      if (data.organization_number && data.cooperative_name && data.cooperative_address && data.cooperative_postal_code && data.cooperative_city) {
+        try {
+          // Check if cooperative already exists
+          const { data: existingCooperative, error: checkError } = await supabase
+            .from("housing_cooperatives")
+            .select("id")
+            .eq("organisation_number", data.organization_number)
+            .single();
+
+          if (checkError && checkError.code !== "PGRST116") {
+            throw checkError;
+          }
+
+          // Prepare housing cooperative data based on signer type
+          let housingCooperativeData: any = {
+            organisation_number: data.organization_number,
+            name: data.cooperative_name,
+            address: data.cooperative_address,
+            city: data.cooperative_city,
+            postal_code: data.cooperative_postal_code,
+            created_by: (await supabase.auth.getUser()).data.user?.id,
+          };
+
+          // If is_accounting_firm is false, save administrator info to housing_cooperatives
+          if (!data.is_accounting_firm && data.housing_cooperative_signers && data.housing_cooperative_signers.length > 0) {
+            // Use the first signer's information for the housing cooperative
+            const firstSigner = data.housing_cooperative_signers[0];
+            if (firstSigner) {
+              housingCooperativeData = {
+                ...housingCooperativeData,
+                administrator_name: firstSigner.administrator_name || "",
+                administrator_email: firstSigner.administrator_email || "",
+                administrator_person_number: firstSigner.administrator_person_number || "",
+                accounting_firm_name: "",
+                accounting_firm_email: "",
+              };
+            }
+          } else if (data.is_accounting_firm) {
+            // If is_accounting_firm is true, save accounting firm info to housing_cooperatives
+            housingCooperativeData = {
+              ...housingCooperativeData,
+              administrator_name: "",
+              administrator_email: "",
+              administrator_person_number: "",
+              accounting_firm_name: data.accounting_firm_name || "",
+              accounting_firm_email: data.accounting_firm_email || "",
+            };
+          }
+
+          if (!existingCooperative) {
+            // Insert new cooperative
+            const { data: newCooperative, error: insertError } = await supabase
+              .from("housing_cooperatives")
+              .insert(housingCooperativeData)
+              .select()
+              .single();
+
+            if (insertError) {
+              console.error("Error saving cooperative:", insertError);
+              toast({
+                title: "Warning",
+                description: "Failed to save housing cooperative data, but mortgage deed will still be created",
+                variant: "destructive",
+              });
+            } else {
+              housing_cooperative_id = newCooperative.id;
+            }
+          } else {
+            // Update existing cooperative with new data
+            const { error: updateError } = await supabase
+              .from("housing_cooperatives")
+              .update(housingCooperativeData)
+              .eq("id", existingCooperative.id);
+
+            if (updateError) {
+              console.error("Error updating cooperative:", updateError);
+              toast({
+                title: "Warning",
+                description: "Failed to update housing cooperative data, but mortgage deed will still be created",
+                variant: "destructive",
+              });
+            } else {
+              housing_cooperative_id = existingCooperative.id;
+            }
+          }
+        } catch (error) {
+          console.error("Error handling cooperative data:", error);
+          toast({
+            title: "Warning",
+            description: "Failed to save housing cooperative data, but mortgage deed will still be created",
+            variant: "destructive",
+          });
+        }
+      }
+
       // Prepare credit numbers array
       const creditNumbers = data.credit_numbers.map(
         (item) => item.credit_number
       );
+      
       // Prepare submit data based on form type
       const submitData = {
         ...data,
         credit_numbers: creditNumbers,
+        housing_cooperative_id: housing_cooperative_id,
       };
+      
       const url = deedId
-        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/mortgage-deeds/${deedId}`
-        : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/mortgage-deeds/create`;
+        ? `${process.env['NEXT_PUBLIC_BACKEND_URL']}/api/mortgage-deeds/${deedId}`
+        : `${process.env['NEXT_PUBLIC_BACKEND_URL']}/api/mortgage-deeds/create`;
 
       const method = deedId ? "PUT" : "POST";
       console.log(submitData);
@@ -516,7 +684,9 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
         description:
           error instanceof ApiError
             ? error.message
-            : "Failed to create mortgage deed",
+            : error instanceof Error
+              ? error.message 
+              : "Failed to create mortgage deed",
         variant: "destructive",
       });
     } finally {
@@ -615,17 +785,40 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
             <CardContent className="space-y-6">
               {/* Housing Cooperative Search */}
               <div className="space-y-4">
-                <div className="relative">
-                  <FormLabel>Search Housing Cooperative</FormLabel>
-                  <Input
-                    type="text"
-                    placeholder="Search by name or organization number"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="max-w-md"
-                  />
+                {/* Organization Number Search */}
+                <div className="space-y-4">
+                  <FormLabel>Search Housing Cooperative by Organization Number</FormLabel>
+                  <div className="flex gap-2 max-w-md">
+                    <Input
+                      type="text"
+                      placeholder="Enter organization number"
+                      value={organizationNumber}
+                      onChange={(e) => setOrganizationNumber(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      onClick={searchByOrganizationNumber}
+                      disabled={isSearching}
+                      className="px-4"
+                    >
+                      {isSearching ? "Searching..." : "Search"}
+                    </Button>
+                  </div>
+                  
+                  {/* No Results Alert */}
+                  {showNoResultsAlert && (
+                    <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                      <p className="text-red-800 text-sm">
+                        No housing cooperative found with the provided organization number. 
+                        Please enter the details manually below.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Search Results */}
                   {cooperativeSearchResults.length > 0 && (
-                    <div className="absolute z-50 w-full max-w-md mt-1 bg-white border rounded-md shadow-lg max-h-[300px] overflow-y-auto divide-y divide-gray-100">
+                    <div className="bg-white border rounded-md shadow-lg max-h-[300px] overflow-y-auto divide-y divide-gray-100">
                       {cooperativeSearchResults.map((coop) => (
                         <div
                           key={coop.id}
@@ -633,7 +826,8 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                           onClick={() => {
                             setSelectedCooperative(coop);
                             setCooperativeSearchResults([]);
-                            setSearchQuery("");
+                            setOrganizationNumber("");
+                            setShowNoResultsAlert(false);
                             form.setValue("housing_cooperative_id", coop.id);
                             form.setValue(
                               "organization_number",
@@ -648,11 +842,23 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                             );
                             form.setValue(
                               "administrator_name",
-                              coop.administrator_name
+                              coop.administrator_name || ""
                             );
                             form.setValue(
                               "administrator_email",
-                              coop.administrator_email
+                              coop.administrator_email || ""
+                            );
+                            form.setValue(
+                              "administrator_person_number",
+                              coop.administrator_person_number || ""
+                            );
+                            form.setValue(
+                              "accounting_firm_name",
+                              coop.accounting_firm_name || ""
+                            );
+                            form.setValue(
+                              "accounting_firm_email",
+                              coop.accounting_firm_email || ""
                             );
                           }}
                         >
@@ -666,101 +872,34 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                   )}
                 </div>
 
-                {/* Cooperative Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="organization_number"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Organization Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="XXXXXX-XXXX" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="cooperative_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="Enter cooperative name"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="cooperative_address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Address</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="Enter cooperative address"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="cooperative_postal_code"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Postal Code</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="XXX XX" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="cooperative_city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter city" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Administrator Information */}
-                {/* <div className="border-t pt-4">
-                  <h4 className="font-medium mb-4">
-                    Administrator Information
-                  </h4>
+                {/* Manual Input Section */}
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-4">Housing Cooperative Details</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="administrator_name"
+                      name="organization_number"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Administrator Name</FormLabel>
+                          <FormLabel>Organization Number</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="XXXXXX-XXXX" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="cooperative_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
-                              placeholder="Enter administrator name"
+                              placeholder="Enter cooperative name"
                             />
                           </FormControl>
                           <FormMessage />
@@ -770,23 +909,50 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
 
                     <FormField
                       control={form.control}
-                      name="administrator_email"
+                      name="cooperative_address"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Administrator Email</FormLabel>
+                          <FormLabel>Address</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
-                              type="email"
-                              placeholder="Enter administrator email"
+                              placeholder="Enter cooperative address"
                             />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="cooperative_postal_code"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Postal Code</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="XXX XX" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="cooperative_city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Enter city" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                </div> */}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -955,64 +1121,123 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
           </Card>
 
           {/* Housing Cooperative Signers Card */}
-          {!form.watch("is_accounting_firm") && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Housing Cooperative Signers</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {signersArray.fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="space-y-4 p-4 border rounded-lg"
-                  >
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-sm font-medium">
-                        Signer {index + 1}
-                      </h3>
-                      {index > 0 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => signersArray.remove(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Housing Cooperative Signers</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Signer Type Selection */}
+              <div className="space-y-4">
+                <h4 className="font-medium">Signer Type</h4>
+                <div className="flex gap-4">
+                  <FormField
+                    control={form.control}
+                    name="is_accounting_firm"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <input
+                            type="radio"
+                            checked={!field.value}
+                            onChange={() => field.onChange(false)}
+                            className="h-4 w-4"
+                          />
+                        </FormControl>
+                        <FormLabel className="font-medium">
+                          Signer
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="is_accounting_firm"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <input
+                            type="radio"
+                            checked={field.value}
+                            onChange={() => field.onChange(true)}
+                            className="h-4 w-4"
+                          />
+                        </FormControl>
+                        <FormLabel className="font-medium">
+                          Accounting Firm
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`housing_cooperative_signers.${index}.administrator_name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Administrator Name</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+              {/* Signer Fields - Show when is_accounting_firm is false */}
+              {!form.watch("is_accounting_firm") && (
+                <div className="space-y-4">
+                  {signersArray.fields.map((field, index) => (
+                    <div
+                      key={field.id}
+                      className="space-y-4 p-4 border rounded-lg"
+                    >
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-medium">
+                          Signer {index + 1}
+                        </h3>
+                        {index > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => signersArray.remove(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`housing_cooperative_signers.${index}.administrator_email`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Administrator Email</FormLabel>
-                            <FormControl>
-                              <Input {...field} type="email" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`housing_cooperative_signers.${index}.administrator_name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Administrator Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`housing_cooperative_signers.${index}.administrator_person_number`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Administrator Person Number</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="YYYYMMDDXXXX" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`housing_cooperative_signers.${index}.administrator_email`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Administrator Email</FormLabel>
+                              <FormControl>
+                                <Input {...field} type="email" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
-                <div className="flex items-center gap-4 mt-4">
+                  ))}
                   <Button
                     type="button"
                     variant="outline"
@@ -1021,86 +1246,58 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                     <Plus className="h-4 w-4 mr-2" />
                     Add Signer
                   </Button>
-                  {/* Show the checkbox only if there are no signers */}
-                  {signersArray.fields.length === 0 && (
-                    <div className="ml-16"> {/* Increased left margin for more space */}
+                </div>
+              )}
+
+              {/* Accounting Firm Fields - Show when is_accounting_firm is true */}
+              {form.watch("is_accounting_firm") && (
+                <div className="space-y-4">
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-4">
+                      Accounting Firm Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name="is_accounting_firm"
+                        name="accounting_firm_name"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                          <FormItem>
+                            <FormLabel>Accounting Firm Name</FormLabel>
                             <FormControl>
-                              <input
-                                type="checkbox"
-                                checked={field.value}
-                                onChange={field.onChange}
-                                className="h-4 w-4"
+                              <Input
+                                {...field}
+                                className="max-w-md"
+                                placeholder="Enter firm name"
                               />
                             </FormControl>
-                            <FormLabel className="font-medium">
-                              Accounting Firm
-                            </FormLabel>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="accounting_firm_email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Accounting Firm Email</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="email"
+                                className="max-w-md"
+                                placeholder="Enter firm email"
+                              />
+                            </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {/* Accounting Firm Card - only show if is_accounting_firm is true */}
-          {form.watch("is_accounting_firm") && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Accounting Firm</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-4">
-                    Accounting Firm Information
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="accounting_firm_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Accounting Firm Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              className="max-w-md"
-                              placeholder="Enter firm name"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="accounting_firm_email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Accounting Firm Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type="email"
-                              className="max-w-md"
-                              placeholder="Enter firm email"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
           {/* Additional Information Card */}
           <Card>
@@ -1116,7 +1313,7 @@ export default function SkapaPantbrev({ deedId }: SkapaPantbrevProps) {
                   <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                     <FormControl>
                       <Checkbox
-                        checked={field.value}
+                        checked={field.value || false}
                         onCheckedChange={field.onChange}
                         id="has_existing_mortgages"
                       />

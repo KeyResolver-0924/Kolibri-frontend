@@ -38,39 +38,7 @@ export default function SupabaseLoginPage() {
         throw error;
       }
 
-      // Get user data to check role
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError) throw userError;
-
-      // Check if user is a cooperative admin
-      if (user?.user_metadata?.role === "cooperative_admin") {
-        // Check if they have any cooperatives
-        const { data: cooperative, error: coopError } = await supabase
-          .from("cooperatives")
-          .select("id")
-          .eq("admin_id", user.id)
-          .single();
-
-        if (coopError && coopError.code !== "PGRST116") {
-          // PGRST116 means no rows found
-          throw coopError;
-        }
-
-        // If no cooperative exists, redirect to setup
-        if (!cooperative) {
-          toast({
-            title: "Welcome!",
-            description: "Please set up your cooperative to continue.",
-          });
-          router.replace("/setup-cooperative");
-          return;
-        }
-      }
-
-      // If we reach here, either user is not a cooperative admin or already has a cooperative
+      // Redirect directly to dashboard after successful login
       router.replace("/dashboard");
     } catch (error) {
       console.log(error);
