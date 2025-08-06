@@ -4,11 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 // List of public routes that don't require authentication
 const publicRoutes = ["/", "/login", "/signup", "/logout"];
 
-// List of routes that require authentication but not cooperative setup
+// List of routes that require authentication
 const authRoutes = ["/dashboard", "/settings", "/arkiv", "/my-associations"];
-
-// List of routes that require cooperative setup for cooperative admins
-const cooperativeSetupRoutes = ["/setup-cooperative"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -18,8 +15,8 @@ export async function middleware(request: NextRequest) {
   });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_KEY!,
+    process.env['NEXT_PUBLIC_SUPABASE_URL']!,
+    process.env['NEXT_PUBLIC_SUPABASE_KEY']!,
     {
       cookies: {
         get(name: string) {
@@ -108,40 +105,6 @@ export async function middleware(request: NextRequest) {
         });
       }
     }
-
-    // Get user metadata
-    // const {
-    //   data: { user },
-    // } = await supabase.auth.getUser();
-
-    // // Handle cooperative admin setup
-    // if (user?.user_metadata?.role === "cooperative_admin") {
-    //   // Check if the cooperative is already set up
-    //   const { data: cooperative } = await supabase
-    //     .from("cooperatives")
-    //     .select("id")
-    //     .eq("admin_id", user.id)
-    //     .single();
-
-    //   const needsSetup = !cooperative;
-    //   const isSetupRoute = cooperativeSetupRoutes.some(
-    //     (route) =>
-    //       request.nextUrl.pathname === route ||
-    //       request.nextUrl.pathname.startsWith(route + "/")
-    //   );
-
-    //   // If needs setup and not on setup page, redirect to setup
-    //   if (needsSetup && !isSetupRoute) {
-    //     const redirectUrl = new URL("/setup-cooperative", request.url);
-    //     return NextResponse.redirect(redirectUrl);
-    //   }
-
-    //   // If already set up and trying to access setup page, redirect to dashboard
-    //   if (!needsSetup && isSetupRoute) {
-    //     const redirectUrl = new URL("/dashboard", request.url);
-    //     return NextResponse.redirect(redirectUrl);
-    //   }
-    // }
 
     // If user is signed in and tries to access login/signup pages
     if (

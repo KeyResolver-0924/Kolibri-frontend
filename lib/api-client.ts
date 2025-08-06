@@ -4,7 +4,7 @@ import { MortgageDeed, DeedFilters, PaginationHeaders, StatsSummary } from './ty
 
 // Configuration
 const API_CONFIG = {
-  baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080',
+  baseUrl: process.env['NEXT_PUBLIC_BACKEND_URL'],
   timeout: 10000,
   retryAttempts: 3,
   retryDelay: 1000,
@@ -378,3 +378,5 @@ export async function isAuthenticated(): Promise<boolean> {
     return false;
   }
 }
+export { ApiError };
+

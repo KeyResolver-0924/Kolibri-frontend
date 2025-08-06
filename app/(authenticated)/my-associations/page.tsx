@@ -96,7 +96,7 @@ export default function MyAssociationsPage() {
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/housing-cooperatives?page=${page}&page_size=${pageSize}`,
+        `${process.env['NEXT_PUBLIC_BACKEND_URL']}/api/housing-cooperatives?page=${page}&page_size=${pageSize}`,
         {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
@@ -310,7 +310,7 @@ export default function MyAssociationsPage() {
           }}
           onSuccess={handleFormSuccess}
           initialData={
-            selectedCooperative as HousingCooperativeFormData | undefined
+            selectedCooperative as HousingCooperativeFormData | null
           }
         />
 

@@ -34,7 +34,7 @@ export function DeedViewer({ id }: DeedViewerProps) {
         }
 
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/mortgage-deeds/${id}`,
+          `${process.env['NEXT_PUBLIC_BACKEND_URL']}/api/mortgage-deeds/${id}`,
           {
             headers: {
               Authorization: `Bearer ${session.access_token}`,
@@ -77,7 +77,7 @@ export function DeedViewer({ id }: DeedViewerProps) {
         throw new ApiError(401, "Unauthorized: No session found");
       }
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/mortgage-deeds/deeds/${id}/send-for-signing`,
+        `${process.env['NEXT_PUBLIC_BACKEND_URL']}/api/mortgage-deeds/deeds/${id}/send-for-signing`,
         {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
